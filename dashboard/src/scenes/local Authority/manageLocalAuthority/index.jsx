@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Box } from "@mui/material";
+import { useState, useCallback, useEffect } from "react";
+import { Box, Typography } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { tokens } from "../../../theme";
 import { mockLocalAuthority as initialData } from "../../../data/mockData";
@@ -9,6 +9,8 @@ import Button from "@mui/material/Button";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ConfirmDialog from "../../../components/ComfirmDialog"; // Import the ConfirmDialog
+import { Link } from "react-router-dom";
+import { useHttpClient } from "../../../hooks/http-hooks"; // Import the custom hook for handling HTTP requests
 
 const LocalAuthority = () => {
   const theme = useTheme();
@@ -17,6 +19,23 @@ const LocalAuthority = () => {
   const [data, setData] = useState(initialData);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const { isLoading, error, sendRequest } = useHttpClient(); // Custom hook for HTTP requests
+
+  // Fetch user data from the backend API on component mount
+  useEffect(() => {
+    const fetchLocalAuthority = async () => {
+      try {
+        const responseData = await sendRequest(
+          `${process.env.REACT_APP_BACKEND_URL}/local_authority/list`
+        );
+        setData(responseData.localAuthority); // Assuming your API response has a 'localAuthority' field
+      } catch (e) {
+        console.error("Error fetching data:", e.message);
+      }
+    };
+
+    fetchLocalAuthority();
+  }, [sendRequest]);
 
   const handleOpenDialog = useCallback((id) => {
     setSelectedId(id);
@@ -28,17 +47,34 @@ const LocalAuthority = () => {
     setSelectedId(null);
   }, []);
 
-  const handleConfirmDelete = useCallback(() => {
-    if (selectedId !== null) {
-      const updatedData = data.filter((item) => item.id !== selectedId);
-      setData(updatedData);
-      console.log(`Deleted item with id: ${selectedId}`);
+  const handleConfirmDelete = useCallback(async () => {
+    try {
+      await sendRequest(
+        `${process.env.REACT_APP_BACKEND_URL}/local_authority/${selectedId}/delete`,
+        "DELETE",
+        null
+      );
+      // Filter out the deleted item from the local data state
+      setData((prevData) => prevData.filter((item) => item.id !== selectedId));
+    } catch (e) {
+      console.error("Error deleting item:", e.message);
+    } finally {
+      handleCloseDialog(); // Close the confirmation dialog
     }
-    handleCloseDialog();
-  }, [data, selectedId, handleCloseDialog]);
+  }, [selectedId, sendRequest, handleCloseDialog]);
 
   const columns = [
-    { field: "id", headerName: "ID", flex: 0.5 },
+    {
+      field: "sequence", // Custom field for sequence numbers
+      headerName: "No.",
+      flex: 0.5,
+      renderCell: (params) => {
+        const rowIndex = Array.from(params.api.getRowModels().keys()).indexOf(
+          params.id
+        );
+        return rowIndex + 1;
+      },
+    },
 
     {
       field: "name",
@@ -46,12 +82,11 @@ const LocalAuthority = () => {
       flex: 1,
       cellClassName: "name-column--cell",
     },
-
+    { field: "nickname", headerName: "NickName", flex: 1 },
     { field: "email", headerName: "Email", flex: 1 },
-
-    { field: "phone", headerName: "Phone Number", flex: 1 },
-
+    { field: "no_telephone", headerName: "Phone Number", flex: 1 },
     { field: "area", headerName: "Area", flex: 1 },
+    { field: "state", headerName: "State", flex: 1 },
 
     {
       headerName: "Action",
@@ -64,7 +99,8 @@ const LocalAuthority = () => {
               variant="contained"
               color="warning"
               startIcon={<EditIcon />}
-              href={`/local_authority/edit/${id}`}
+              component={Link}
+              to={`/local_authority/edit/${id}`}
             >
               Edit
             </Button>
@@ -85,6 +121,13 @@ const LocalAuthority = () => {
   return (
     <Box m="20px">
       <Header title="Local Authority" subtitle="List of Local Authority" />
+
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          {error}
+        </Typography>
+      )}
+
       <Box
         m="40px 0 0 0"
         height="75vh"
@@ -115,11 +158,19 @@ const LocalAuthority = () => {
           },
         }}
       >
-        <DataGrid
-          rows={data}
-          columns={columns}
-          slots={{ toolbar: GridToolbar }}
-        />
+        {/* Display loading state */}
+        {isLoading ? (
+          <Typography variant="h6" align="center" sx={{ mt: 4 }}>
+            Loading Local Authority...
+          </Typography>
+        ) : (
+          <DataGrid
+            rows={data}
+            columns={columns}
+            getRowId={(row) => row.id}
+            slots={{ toolbar: GridToolbar }}
+          />
+        )}
       </Box>
 
       <ConfirmDialog
