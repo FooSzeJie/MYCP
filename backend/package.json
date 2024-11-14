@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@paypal/checkout-server-sdk": "^1.0.3",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "dotenv": "^16.4.5",
@@ -20,6 +21,8 @@
     "mongoose-double": "^0.0.1",
     "mongoose-unique-validator": "^5.0.1",
     "multer": "^1.4.5-lts.1",
+    "stripe": "^17.3.1",
+    "twilio": "^5.3.5",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
